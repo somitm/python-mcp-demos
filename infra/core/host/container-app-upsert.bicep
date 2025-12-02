@@ -30,7 +30,7 @@ param ingressEnabled bool = true
 param daprEnabled bool = false
 @description('Dapr app ID')
 param daprAppId string = containerName
-@allowed([ 'http', 'grpc' ])
+@allowed(['http', 'grpc'])
 @description('Protocol used by Dapr to connect to the app, e.g. http or grpc')
 param daprAppProtocol string = 'http'
 

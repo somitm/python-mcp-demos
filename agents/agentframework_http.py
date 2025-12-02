@@ -4,22 +4,16 @@ import asyncio
 import logging
 import os
 
+from agent_framework import ChatAgent, MCPStreamableHTTPTool
+from agent_framework.azure import AzureOpenAIChatClient
+from agent_framework.openai import OpenAIChatClient
 from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
 
-from agent_framework import ChatAgent, MCPStreamableHTTPTool
-from agent_framework.azure import AzureOpenAIChatClient
-from agent_framework.openai import OpenAIChatClient
-
 # Configure logging
-logging.basicConfig(
-    level=logging.WARNING,
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler()]
-)
+logging.basicConfig(level=logging.WARNING, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()])
 logger = logging.getLogger("agentframework_mcp_http")
 
 # Load environment variables
@@ -59,15 +53,12 @@ else:
 async def http_mcp_example() -> None:
     """
     Demonstrate MCP integration with the local Expenses MCP server.
-    
+
     Creates an agent that can help users log expenses
     using the Expenses MCP server at http://localhost:8000/mcp/.
     """
     async with (
-        MCPStreamableHTTPTool(
-            name="Expenses MCP Server",
-            url=MCP_SERVER_URL
-        ) as mcp_server,
+        MCPStreamableHTTPTool(name="Expenses MCP Server", url=MCP_SERVER_URL) as mcp_server,
         ChatAgent(
             chat_client=client,
             name="Expenses Agent",

@@ -27,15 +27,17 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.
     tags: tags
     zoneRedundant: false
     publicNetworkAccess: 'Enabled'
-    appLogsConfiguration: useLogging ? {
-      destination: 'log-analytics'
-      logAnalyticsConfiguration: {
-        customerId: logAnalyticsWorkspace!.properties.customerId
-        sharedKey: logAnalyticsWorkspace!.listKeys().primarySharedKey
-      }
-    } : {
-      destination: 'azure-monitor'
-    }
+    appLogsConfiguration: useLogging
+      ? {
+          destination: 'log-analytics'
+          logAnalyticsConfiguration: {
+            customerId: logAnalyticsWorkspace!.properties.customerId
+            sharedKey: logAnalyticsWorkspace!.listKeys().primarySharedKey
+          }
+        }
+      : {
+          destination: 'azure-monitor'
+        }
     internal: useVnet ? usePrivateIngress : false
     infrastructureSubnetResourceId: useVnet ? subnetResourceId : ''
   }

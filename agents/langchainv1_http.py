@@ -13,12 +13,7 @@ from pydantic import SecretStr
 from rich.logging import RichHandler
 
 # Configure logging
-logging.basicConfig(
-    level=logging.WARNING,
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler()]
-)
+logging.basicConfig(level=logging.WARNING, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()])
 logger = logging.getLogger("itinerario_lang")
 
 # Load environment variables
@@ -32,8 +27,7 @@ API_HOST = os.getenv("API_HOST", "github")
 
 if API_HOST == "azure":
     token_provider = azure.identity.get_bearer_token_provider(
-        azure.identity.DefaultAzureCredential(),
-        "https://cognitiveservices.azure.com/.default"
+        azure.identity.DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
     )
     base_model = ChatOpenAI(
         model=os.environ.get("AZURE_OPENAI_CHAT_DEPLOYMENT"),
@@ -79,13 +73,10 @@ async def run_agent() -> None:
     user_query = "yesterday I bought a laptop for $1200 using my visa."
 
     # Invoke agent
-    response = await agent.ainvoke({
-        "messages": [
-            SystemMessage(content=f"Today's date is {today}."),
-            HumanMessage(content=user_query)
-        ]
-    })
-    
+    response = await agent.ainvoke(
+        {"messages": [SystemMessage(content=f"Today's date is {today}."), HumanMessage(content=user_query)]}
+    )
+
     # Display result
     final_response = response["messages"][-1].content
     print(final_response)

@@ -30,7 +30,7 @@ param ingressEnabled bool = true
 param daprEnabled bool = false
 @description('Dapr app ID')
 param daprAppId string = containerName
-@allowed([ 'http', 'grpc' ])
+@allowed(['http', 'grpc'])
 @description('Protocol used by Dapr to connect to the app, e.g. http or grpc')
 param daprAppProtocol string = 'http'
 
@@ -60,7 +60,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
   // otherwise the container app will throw a provision error
   // This also forces us to use an user assigned managed identity since there would no way to
   // provide the system assigned identity with the ACR pull access before the app is created
-  dependsOn: [ containerRegistryAccess ]
+  dependsOn: [containerRegistryAccess]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: { '${userIdentity.id}': {} }
@@ -69,17 +69,21 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
     managedEnvironmentId: containerAppsEnvironment.id
     configuration: {
       activeRevisionsMode: 'single'
-      ingress: ingressEnabled ? {
-        external: external
-        targetPort: targetPort
-        transport: 'auto'
-      } : null
-      dapr: daprEnabled ? {
-        enabled: true
-        appId: daprAppId
-        appProtocol: daprAppProtocol
-        appPort: ingressEnabled ? targetPort : 0
-      } : { enabled: false }
+      ingress: ingressEnabled
+        ? {
+            external: external
+            targetPort: targetPort
+            transport: 'auto'
+          }
+        : null
+      dapr: daprEnabled
+        ? {
+            enabled: true
+            appId: daprAppId
+            appProtocol: daprAppProtocol
+            appPort: ingressEnabled ? targetPort : 0
+          }
+        : { enabled: false }
       secrets: secrets
       registries: [
         {

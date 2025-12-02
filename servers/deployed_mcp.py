@@ -1,14 +1,14 @@
 import logging
 import os
+import uuid
 from datetime import date
 from enum import Enum
 from typing import Annotated
-import uuid
 
 from azure.cosmos.aio import CosmosClient
 from azure.identity.aio import DefaultAzureCredential, ManagedIdentityCredential
-from fastmcp import FastMCP
 from dotenv import load_dotenv
+from fastmcp import FastMCP
 
 load_dotenv(override=True)
 
@@ -40,95 +40,92 @@ mcp = FastMCP("Expenses Tracker")
 
 
 class PaymentMethod(Enum):
-  AMEX = "amex"
-  VISA = "visa"
-  CASH = "cash"
+    AMEX = "amex"
+    VISA = "visa"
+    CASH = "cash"
 
 
 class Category(Enum):
-  FOOD = "food"
-  TRANSPORT = "transport"
-  ENTERTAINMENT = "entertainment"
-  SHOPPING = "shopping"
-  GADGET = "gadget"
-  OTHER = "other"
+    FOOD = "food"
+    TRANSPORT = "transport"
+    ENTERTAINMENT = "entertainment"
+    SHOPPING = "shopping"
+    GADGET = "gadget"
+    OTHER = "other"
 
 
 @mcp.tool
 async def add_expense(
-  date: Annotated[date, "Date of the expense in YYYY-MM-DD format"],
-  amount: Annotated[float, "Positive numeric amount of the expense"],
-  category: Annotated[Category, "Category label"],
-  description: Annotated[str, "Human-readable description of the expense"],
-  payment_method: Annotated[PaymentMethod, "Payment method used"],
+    date: Annotated[date, "Date of the expense in YYYY-MM-DD format"],
+    amount: Annotated[float, "Positive numeric amount of the expense"],
+    category: Annotated[Category, "Category label"],
+    description: Annotated[str, "Human-readable description of the expense"],
+    payment_method: Annotated[PaymentMethod, "Payment method used"],
 ):
-  """Add a new expense to Cosmos DB."""
-  if amount <= 0:
-    return "Error: Amount must be positive"
+    """Add a new expense to Cosmos DB."""
+    if amount <= 0:
+        return "Error: Amount must be positive"
 
-  date_iso = date.isoformat()
-  logger.info(f"Adding expense: ${amount} for {description} on {date_iso}")
+    date_iso = date.isoformat()
+    logger.info(f"Adding expense: ${amount} for {description} on {date_iso}")
 
-  try:
+    try:
+        expense_id = str(uuid.uuid4())
+        expense_item = {
+            "id": expense_id,
+            "date": date_iso,
+            "amount": amount,
+            "category": category.value,
+            "description": description,
+            "payment_method": payment_method.value,
+        }
 
-    expense_id = str(uuid.uuid4())
-    expense_item = {
-      "id": expense_id,
-      "date": date_iso,
-      "amount": amount,
-      "category": category.value,
-      "description": description,
-      "payment_method": payment_method.value,
-    }
+        await cosmos_container.create_item(body=expense_item)
+        return f"Successfully added expense: ${amount} for {description} on {date_iso}"
 
-    await cosmos_container.create_item(body=expense_item)
-    return f"Successfully added expense: ${amount} for {description} on {date_iso}"
-
-  except Exception as e:
-    logger.error(f"Error adding expense: {str(e)}")
-    return f"Error: Unable to add expense - {str(e)}"
+    except Exception as e:
+        logger.error(f"Error adding expense: {str(e)}")
+        return f"Error: Unable to add expense - {str(e)}"
 
 
 @mcp.resource("resource://expenses")
 async def get_expenses_data():
-  """Get raw expense data from Cosmos DB."""
-  logger.info("Expenses data accessed")
+    """Get raw expense data from Cosmos DB."""
+    logger.info("Expenses data accessed")
 
-  try:
-    query = "SELECT * FROM c ORDER BY c.date DESC"
-    expenses_data = []
+    try:
+        query = "SELECT * FROM c ORDER BY c.date DESC"
+        expenses_data = []
 
-    async for item in cosmos_container.query_items(query=query, enable_cross_partition_query=True):
-      expenses_data.append(item)
+        async for item in cosmos_container.query_items(query=query, enable_cross_partition_query=True):
+            expenses_data.append(item)
 
-    if not expenses_data:
-      return "No expenses found."
+        if not expenses_data:
+            return "No expenses found."
 
-    csv_content = f"Expense data ({len(expenses_data)} entries):\n\n"
-    for expense in expenses_data:
-      csv_content += (
-        f"Date: {expense.get('date', 'N/A')}, "
-        f"Amount: ${expense.get('amount', 0)}, "
-        f"Category: {expense.get('category', 'N/A')}, "
-        f"Description: {expense.get('description', 'N/A')}, "
-        f"Payment: {expense.get('payment_method', 'N/A')}\n"
-      )
+        csv_content = f"Expense data ({len(expenses_data)} entries):\n\n"
+        for expense in expenses_data:
+            csv_content += (
+                f"Date: {expense.get('date', 'N/A')}, "
+                f"Amount: ${expense.get('amount', 0)}, "
+                f"Category: {expense.get('category', 'N/A')}, "
+                f"Description: {expense.get('description', 'N/A')}, "
+                f"Payment: {expense.get('payment_method', 'N/A')}\n"
+            )
 
-    return csv_content
+        return csv_content
 
-  except Exception as e:
-    logger.error(f"Error reading expenses: {str(e)}")
-    return f"Error: Unable to retrieve expense data - {str(e)}"
+    except Exception as e:
+        logger.error(f"Error reading expenses: {str(e)}")
+        return f"Error: Unable to retrieve expense data - {str(e)}"
 
 
 @mcp.prompt
 def analyze_spending_prompt(
-  category: str | None = None,
-  start_date: str | None = None,
-  end_date: str | None = None
+    category: str | None = None, start_date: str | None = None, end_date: str | None = None
 ) -> str:
     """Generate a prompt to analyze spending patterns with optional filters."""
-    
+
     filters = []
     if category:
         filters.append(f"Category: {category}")
@@ -136,19 +133,19 @@ def analyze_spending_prompt(
         filters.append(f"From: {start_date}")
     if end_date:
         filters.append(f"To: {end_date}")
-    
+
     filter_text = f" ({', '.join(filters)})" if filters else ""
-    
+
     return f"""
     Please analyze my spending patterns{filter_text} and provide:
-    
+
     1. Total spending breakdown by category
     2. Average daily/weekly spending
     3. Most expensive single transaction
     4. Payment method distribution
     5. Spending trends or unusual patterns
     6. Recommendations for budget optimization
-    
+
     Use the expense data to generate actionable insights.
     """
 
@@ -157,5 +154,5 @@ def analyze_spending_prompt(
 app = mcp.http_app()
 
 if __name__ == "__main__":
-  logger.info("MCP Expenses server starting (HTTP mode on port 8000)")
-  mcp.run(transport="http", host="0.0.0.0", port=8000)
+    logger.info("MCP Expenses server starting (HTTP mode on port 8000)")
+    mcp.run(transport="http", host="0.0.0.0", port=8000)

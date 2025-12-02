@@ -15,7 +15,18 @@ param principalId string = ''
 param acaExists bool = false
 
 @description('Location for the OpenAI resource group')
-@allowed([ 'canadaeast', 'eastus', 'eastus2', 'francecentral', 'switzerlandnorth', 'uksouth', 'japaneast', 'northcentralus', 'australiaeast', 'swedencentral' ])
+@allowed([
+  'canadaeast'
+  'eastus'
+  'eastus2'
+  'francecentral'
+  'switzerlandnorth'
+  'uksouth'
+  'japaneast'
+  'northcentralus'
+  'australiaeast'
+  'swedencentral'
+])
 @metadata({
   azd: {
     type: 'location'
@@ -65,12 +76,14 @@ module openAi 'br/public:avm/res/cognitive-services/account:0.7.2' = {
       bypass: 'AzureServices'
     }
     sku: 'S0'
-    diagnosticSettings: useMonitoring ? [
-      {
-        name: 'customSetting'
-        workspaceResourceId: logAnalyticsWorkspace.?outputs.resourceId
-      }
-    ] : []
+    diagnosticSettings: useMonitoring
+      ? [
+          {
+            name: 'customSetting'
+            workspaceResourceId: logAnalyticsWorkspace.?outputs.resourceId
+          }
+        ]
+      : []
     deployments: [
       {
         name: openAiDeploymentName
@@ -126,7 +139,6 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.6.1' = {
   }
 }
 
-
 module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.7.0' = if (useMonitoring) {
   name: 'loganalytics'
   scope: resourceGroup
@@ -150,21 +162,23 @@ module containerAppsNSG 'br/public:avm/res/network/network-security-group:0.5.1'
     name: '${prefix}-container-apps-nsg'
     location: location
     tags: tags
-    securityRules: usePrivateIngress ? [
-        {
-          name: 'AllowHttpsInbound'
-          properties: {
-            protocol: 'Tcp'
-            sourcePortRange: '*'
-            sourceAddressPrefix: 'Internet'
-            destinationPortRange: '443'
-            destinationAddressPrefix: '*'
-            access: 'Allow'
-            priority: 100
-            direction: 'Inbound'
+    securityRules: usePrivateIngress
+      ? [
+          {
+            name: 'AllowHttpsInbound'
+            properties: {
+              protocol: 'Tcp'
+              sourcePortRange: '*'
+              sourceAddressPrefix: 'Internet'
+              destinationPortRange: '443'
+              destinationAddressPrefix: '*'
+              access: 'Allow'
+              priority: 100
+              direction: 'Inbound'
+            }
           }
-        }
-      ] : []
+        ]
+      : []
   }
 }
 
@@ -673,7 +687,7 @@ module openAiRoleBackend 'core/security/role.bicep' = {
   name: 'openai-role-backend'
   params: {
     principalId: aca.outputs.identityPrincipalId
-    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'  // Cognitive Services OpenAI User
+    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd' // Cognitive Services OpenAI User
     principalType: 'ServicePrincipal'
   }
 }

@@ -17,3 +17,15 @@ dependencies = [
     "agent-framework>=1.0.0b251016",
     "azure-cosmos>=4.9.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "pre-commit>=4.0.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+lint.select = ["E", "F", "I", "UP"]
+lint.ignore = ["D203"]
