@@ -1,3 +1,5 @@
+"""Run with: cd servers && uvicorn deployed_mcp:app --host 0.0.0.0 --port 8000"""
+
 import logging
 import os
 import uuid
@@ -12,7 +14,12 @@ from azure.identity.aio import DefaultAzureCredential, ManagedIdentityCredential
 from azure.monitor.opentelemetry import configure_azure_monitor
 from dotenv import load_dotenv
 from fastmcp import FastMCP
-from opentelemetry_middleware import OpenTelemetryMiddleware
+from opentelemetry.instrumentation.starlette import StarletteInstrumentor
+
+try:
+    from opentelemetry_middleware import OpenTelemetryMiddleware
+except ImportError:
+    from servers.opentelemetry_middleware import OpenTelemetryMiddleware
 
 RUNNING_IN_PRODUCTION = os.getenv("RUNNING_IN_PRODUCTION", "false").lower() == "true"
 
@@ -23,13 +30,14 @@ logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(message)s")
 logger = logging.getLogger("ExpensesMCP")
 logger.setLevel(logging.INFO)
 
-# Configure OpenTelemetry tracing
+# Configure OpenTelemetry tracing, either via Azure Monitor or Logfire
+# We don't support both at the same time due to potential conflicts with tracer providers
 if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     logger.info("Setting up Azure Monitor instrumentation")
     configure_azure_monitor()
 elif os.getenv("LOGFIRE_PROJECT_NAME"):
     logger.info("Setting up Logfire instrumentation")
-    settings.tracing_implementation = "opentelemetry"  # Send Azure Monitor traces via OpenTelemetry
+    settings.tracing_implementation = "opentelemetry"  # Configure Azure SDK to use OpenTelemetry tracing
     logfire.configure(service_name="expenses-mcp", send_to_logfire=True)
 
 # Cosmos DB configuration from environment variables
@@ -169,7 +177,4 @@ def analyze_spending_prompt(
 
 # ASGI application for uvicorn
 app = mcp.http_app()
-
-if __name__ == "__main__":
-    logger.info("MCP Expenses server starting (HTTP mode on port 8000)")
-    mcp.run(transport="http", host="0.0.0.0", port=8000)
+StarletteInstrumentor.instrument_app(app)

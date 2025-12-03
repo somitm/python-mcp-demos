@@ -19,6 +19,8 @@ class OpenTelemetryMiddleware(Middleware):
                 "mcp.method": context.method,
                 "mcp.source": context.source,
                 "mcp.tool.name": tool_name,
+                # If arguments are sensitive, consider omitting or sanitizing them
+                # If arguments are long/nested, consider adding a size or depth limit
                 "mcp.tool.arguments": str(context.message.arguments),
             },
         ) as span:

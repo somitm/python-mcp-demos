@@ -754,4 +754,5 @@ output AZURE_COSMOSDB_ENDPOINT string = cosmosDb.outputs.endpoint
 output AZURE_COSMOSDB_DATABASE string = cosmosDbDatabaseName
 output AZURE_COSMOSDB_CONTAINER string = cosmosDbContainerName
 
+// We typically do not output sensitive values, but App Insights connection strings are not considered highly sensitive
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = useMonitoring ? applicationInsights.outputs.connectionString : ''

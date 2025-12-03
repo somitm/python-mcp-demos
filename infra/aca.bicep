@@ -59,6 +59,7 @@ module app 'core/host/container-app-upsert.bicep' = {
         name: 'AZURE_COSMOSDB_CONTAINER'
         value: cosmosDbContainer
       }
+      // We typically store sensitive values in secrets, but App Insights connection strings are not considered highly sensitive
       {
         name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
         value: applicationInsightsConnectionString

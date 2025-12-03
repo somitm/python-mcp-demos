@@ -17,7 +17,8 @@ dependencies = [
     "agent-framework>=1.0.0b251016",
     "azure-cosmos>=4.9.0",
     "azure-monitor-opentelemetry>=1.6.4",
-    "logfire>=3.11.0",
+    "opentelemetry-instrumentation-starlette>=0.49b0",
+    "logfire>=4.15.1",
     "azure-core-tracing-opentelemetry>=1.0.0b12"
 ]
 
