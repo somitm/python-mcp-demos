@@ -2,7 +2,7 @@
 # We use Alpine for smaller image size (~329MB vs ~431MB for Debian slim).
 # Trade-off: We must install build tools to compile native extensions (cryptography, etc.)
 # since pre-built musl wheels aren't available. Debian -slim would skip compilation
-# but produces a larger final image due to glibc wheel sizes.
+# but produces a larger image due to glibc wheel sizes.
 FROM python:3.13-alpine AS build
 
 # Install build dependencies for packages with native extensions (cryptography, etc.)
@@ -38,4 +38,5 @@ ENV PATH="/code/.venv/bin:$PATH"
 
 EXPOSE 8000
 
-ENTRYPOINT ["uvicorn", "keycloak_deployed_mcp:app", "--host", "0.0.0.0", "--port", "8000"]
+# MCP server WITHOUT Keycloak authentication
+ENTRYPOINT ["uvicorn", "deployed_mcp:app", "--host", "0.0.0.0", "--port", "8000"]

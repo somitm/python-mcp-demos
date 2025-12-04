@@ -1,0 +1,15 @@
+FROM quay.io/keycloak/keycloak:26.0
+
+# Copy the MCP realm configuration for import on startup
+COPY infra/keycloak-realm.json /opt/keycloak/data/import/mcp-realm.json
+
+# Expose port 8080
+EXPOSE 8080
+
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+
+# Start in dev mode with H2 database
+# --proxy-headers=xforwarded tells Keycloak it's behind a reverse proxy that sets X-Forwarded-* headers
+# --hostname-strict=false allows dynamic hostname resolution from proxy headers  
+# --import-realm imports the MCP realm on startup
+CMD ["start-dev", "--http-port=8080", "--proxy-headers=xforwarded", "--hostname-strict=false", "--import-realm"]

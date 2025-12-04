@@ -1,3 +1,4 @@
+// MCP Server WITHOUT Keycloak authentication (deployed_mcp.py)
 param name string
 param location string = resourceGroup().location
 param tags object = {}
@@ -5,7 +6,7 @@ param tags object = {}
 param identityName string
 param containerAppsEnvironmentName string
 param containerRegistryName string
-param serviceName string = 'aca'
+param serviceName string = 'mcpnoauth'
 param exists bool
 param openAiDeploymentName string
 param openAiEndpoint string
@@ -13,12 +14,7 @@ param cosmosDbAccount string
 param cosmosDbDatabase string
 param cosmosDbContainer string
 
-// Keycloak authentication parameters
-param keycloakRealmUrl string
-param mcpServerBaseUrl string
-param mcpServerAudience string = 'mcp-server'
-
-resource acaIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+resource mcpNoAuthIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName
   location: location
 }
@@ -29,7 +25,7 @@ module app 'core/host/container-app-upsert.bicep' = {
     name: name
     location: location
     tags: union(tags, { 'azd-service-name': serviceName })
-    identityName: acaIdentity.name
+    identityName: mcpNoAuthIdentity.name
     exists: exists
     containerAppsEnvironmentName: containerAppsEnvironmentName
     containerRegistryName: containerRegistryName
@@ -49,7 +45,7 @@ module app 'core/host/container-app-upsert.bicep' = {
       }
       {
         name: 'AZURE_CLIENT_ID'
-        value: acaIdentity.properties.clientId
+        value: mcpNoAuthIdentity.properties.clientId
       }
       {
         name: 'AZURE_COSMOSDB_ACCOUNT'
@@ -63,25 +59,12 @@ module app 'core/host/container-app-upsert.bicep' = {
         name: 'AZURE_COSMOSDB_CONTAINER'
         value: cosmosDbContainer
       }
-      // Keycloak authentication environment variables
-      {
-        name: 'KEYCLOAK_REALM_URL'
-        value: keycloakRealmUrl
-      }
-      {
-        name: 'MCP_SERVER_BASE_URL'
-        value: mcpServerBaseUrl
-      }
-      {
-        name: 'MCP_SERVER_AUDIENCE'
-        value: mcpServerAudience
-      }
     ]
     targetPort: 8000
   }
 }
 
-output identityPrincipalId string = acaIdentity.properties.principalId
+output identityPrincipalId string = mcpNoAuthIdentity.properties.principalId
 output name string = app.outputs.name
 output hostName string = app.outputs.hostName
 output uri string = app.outputs.uri

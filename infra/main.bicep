@@ -13,6 +13,8 @@ param location string
 param principalId string = ''
 
 param acaExists bool = false
+param mcpnoauthExists bool = false
+param keycloakExists bool = false
 
 @description('Location for the OpenAI resource group')
 @allowed([
@@ -43,6 +45,19 @@ param useVnet bool = false
 
 @description('Flag to enable or disable public ingress')
 param usePrivateIngress bool = false
+
+@description('Keycloak admin username')
+param keycloakAdminUser string = 'admin'
+
+@secure()
+@description('Keycloak admin password - must be set via azd env')
+param keycloakAdminPassword string
+
+@description('Keycloak realm name for MCP authentication')
+param keycloakRealmName string = 'mcp'
+
+@description('Audience claim for MCP server tokens')
+param mcpServerAudience string = 'mcp-server'
 
 var resourceToken = toLower(uniqueString(subscription().id, name, location))
 var tags = { 'azd-env-name': name }
@@ -670,6 +685,59 @@ module aca 'aca.bicep' = {
     cosmosDbDatabase: cosmosDbDatabaseName
     cosmosDbContainer: cosmosDbContainerName
     exists: acaExists
+    // Keycloak authentication configuration
+    // Use direct Keycloak URL for issuer validation (tokens are issued with this URL)
+    keycloakRealmUrl: '${keycloak.outputs.uri}/realms/${keycloakRealmName}'
+    mcpServerBaseUrl: 'https://mcproutes.${containerApps.outputs.defaultDomain}'
+    mcpServerAudience: mcpServerAudience
+  }
+}
+
+// MCP Server without authentication (deployed_mcp.py)
+module mcpnoauth 'aca-noauth.bicep' = {
+  name: 'mcpnoauth'
+  scope: resourceGroup
+  params: {
+    name: replace('${take(prefix,19)}-na', '--', '-')
+    location: location
+    tags: tags
+    identityName: '${prefix}-id-mcpnoauth'
+    containerAppsEnvironmentName: containerApps.outputs.environmentName
+    containerRegistryName: containerApps.outputs.registryName
+    openAiDeploymentName: openAiDeploymentName
+    openAiEndpoint: openAi.outputs.endpoint
+    cosmosDbAccount: cosmosDb.outputs.name
+    cosmosDbDatabase: cosmosDbDatabaseName
+    cosmosDbContainer: cosmosDbContainerName
+    exists: mcpnoauthExists
+  }
+}
+
+// Keycloak authentication server
+module keycloak 'keycloak.bicep' = {
+  name: 'keycloak'
+  scope: resourceGroup
+  params: {
+    name: replace('${take(prefix,19)}-kc', '--', '-')
+    location: location
+    tags: tags
+    identityName: '${prefix}-id-keycloak'
+    containerAppsEnvironmentName: containerApps.outputs.environmentName
+    containerRegistryName: containerApps.outputs.registryName
+    keycloakAdminUser: keycloakAdminUser
+    keycloakAdminPassword: keycloakAdminPassword
+    exists: keycloakExists
+  }
+}
+
+// HTTP Route configuration for rule-based routing
+module httpRoutes 'http-routes.bicep' = {
+  name: 'http-routes'
+  scope: resourceGroup
+  params: {
+    containerAppsEnvironmentName: containerApps.outputs.environmentName
+    mcpServerAppName: aca.outputs.name
+    keycloakAppName: keycloak.outputs.name
   }
 }
 
@@ -715,6 +783,17 @@ module cosmosDbRoleBackend 'core/security/documentdb-sql-role.bicep' = {
   }
 }
 
+// Cosmos DB Data Contributor role for mcpnoauth (no-auth MCP server)
+module cosmosDbRoleMcpNoAuth 'core/security/documentdb-sql-role.bicep' = {
+  scope: resourceGroup
+  name: 'cosmosdb-role-mcpnoauth'
+  params: {
+    databaseAccountName: cosmosDb.outputs.name
+    principalId: mcpnoauth.outputs.identityPrincipalId
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup.name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDb.outputs.name}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
+  }
+}
+
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_RESOURCE_GROUP string = resourceGroup.name
@@ -730,6 +809,14 @@ output SERVICE_ACA_NAME string = aca.outputs.name
 output SERVICE_ACA_URI string = aca.outputs.uri
 output SERVICE_ACA_IMAGE_NAME string = aca.outputs.imageName
 
+output SERVICE_KEYCLOAK_NAME string = keycloak.outputs.name
+output SERVICE_KEYCLOAK_URI string = keycloak.outputs.uri
+output SERVICE_KEYCLOAK_IMAGE_NAME string = keycloak.outputs.imageName
+
+output SERVICE_MCPNOAUTH_NAME string = mcpnoauth.outputs.name
+output SERVICE_MCPNOAUTH_URI string = mcpnoauth.outputs.uri
+output SERVICE_MCPNOAUTH_IMAGE_NAME string = mcpnoauth.outputs.imageName
+
 output AZURE_CONTAINER_ENVIRONMENT_NAME string = containerApps.outputs.environmentName
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerApps.outputs.registryLoginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = containerApps.outputs.registryName
@@ -738,3 +825,11 @@ output AZURE_COSMOSDB_ACCOUNT string = cosmosDb.outputs.name
 output AZURE_COSMOSDB_ENDPOINT string = cosmosDb.outputs.endpoint
 output AZURE_COSMOSDB_DATABASE string = cosmosDbDatabaseName
 output AZURE_COSMOSDB_CONTAINER string = cosmosDbContainerName
+
+// Keycloak and MCP Server routing outputs
+output HTTP_ROUTES_URL string = httpRoutes.outputs.routeConfigUrl
+output KEYCLOAK_URL string = '${httpRoutes.outputs.routeConfigUrl}/auth'
+output KEYCLOAK_REALM_URL string = '${httpRoutes.outputs.routeConfigUrl}/auth/realms/${keycloakRealmName}'
+output MCP_SERVER_URL string = httpRoutes.outputs.routeConfigUrl
+output KEYCLOAK_ADMIN_CONSOLE string = '${httpRoutes.outputs.routeConfigUrl}/auth/admin'
+output KEYCLOAK_DIRECT_URL string = keycloak.outputs.uri
