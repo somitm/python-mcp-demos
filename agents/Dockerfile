@@ -13,16 +13,14 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.14 /uv /uvx /bin/
 
 WORKDIR /code
 
-# Install dependencies first (for layer caching)
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project
+# Copy dependency files and install dependencies (for layer caching)
+# Note: We avoid --mount=type=cache since Azure Container Apps remote build doesn't support BuildKit
+COPY uv.lock pyproject.toml ./
+RUN uv sync --locked --no-install-project
 
 # Copy the project and sync
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked
+RUN uv sync --locked
 
 # ------------------- Stage 2: Final Stage ------------------------------
 FROM python:3.13-alpine AS final
