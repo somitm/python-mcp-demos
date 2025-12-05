@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime
 
 from agent_framework import ChatAgent, MCPStreamableHTTPTool
 from agent_framework.azure import AzureOpenAIChatClient
@@ -11,6 +12,11 @@ from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
+
+try:
+    from keycloak_auth import get_auth_headers
+except ImportError:
+    from agents.keycloak_auth import get_auth_headers
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()])
@@ -22,6 +28,9 @@ load_dotenv(override=True)
 # Constants
 RUNNING_IN_PRODUCTION = os.getenv("RUNNING_IN_PRODUCTION", "false").lower() == "true"
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp/")
+
+# Optional: Keycloak authentication (set KEYCLOAK_REALM_URL to enable)
+KEYCLOAK_REALM_URL = os.getenv("KEYCLOAK_REALM_URL")
 
 # Configure chat client based on API_HOST
 API_HOST = os.getenv("API_HOST", "github")
@@ -51,19 +60,29 @@ else:
     )
 
 
+# --- Main Agent Logic ---
+
+
 async def http_mcp_example() -> None:
     """
-    Demonstrate MCP integration with the local Expenses MCP server.
+    Demonstrate MCP integration with the Expenses MCP server.
 
-    Creates an agent that can help users log expenses
-    using the Expenses MCP server at http://localhost:8000/mcp/.
+    If KEYCLOAK_REALM_URL is set, authenticates via OAuth (DCR + client credentials).
+    Otherwise, connects without authentication.
     """
+    # Get auth headers if Keycloak is configured
+    headers = await get_auth_headers(KEYCLOAK_REALM_URL, client_name_prefix="agentframework")
+    if headers:
+        logger.info(f"🔐 Auth enabled - connecting to {MCP_SERVER_URL} with Bearer token")
+    else:
+        logger.info(f"📡 No auth - connecting to {MCP_SERVER_URL}")
+
     async with (
-        MCPStreamableHTTPTool(name="Expenses MCP Server", url=MCP_SERVER_URL) as mcp_server,
+        MCPStreamableHTTPTool(name="Expenses MCP Server", url=MCP_SERVER_URL, headers=headers) as mcp_server,
         ChatAgent(
             chat_client=client,
             name="Expenses Agent",
-            instructions="You help users to log expenses.",
+            instructions=f"You help users to log expenses. Today's date is {datetime.now().strftime('%Y-%m-%d')}.",
         ) as agent,
     ):
         user_query = "yesterday I bought a laptop for $1200 using my visa."
