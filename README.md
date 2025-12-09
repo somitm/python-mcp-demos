@@ -170,7 +170,21 @@ You can use the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspir
        mcr.microsoft.com/dotnet/aspire-dashboard:latest
    ```
 
-2. Set the environment variable and start the HTTP server:
+   > The Aspire Dashboard exposes its OTLP endpoint on container port 18889. The mapping `-p 4317:18889` makes it available on the host's standard OTLP port 4317.
+
+   Get the dashboard URL and login token from the container logs:
+
+   ```bash
+   docker logs aspire-dashboard 2>&1 | grep "Login to the dashboard"
+   ```
+
+2. Enable OpenTelemetry by adding this to your `.env` file:
+
+   ```bash
+   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+   ```
+
+3. Start the HTTP server:
 
    ```bash
    uv run servers/basic_mcp_http.py
