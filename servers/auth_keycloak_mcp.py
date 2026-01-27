@@ -7,6 +7,7 @@ Run with: cd servers && uvicorn auth_keycloak_mcp:app --host 0.0.0.0 --port 8000
 import logging
 import os
 import uuid
+import warnings
 from datetime import date
 from enum import Enum
 from typing import Annotated
@@ -35,7 +36,7 @@ if not RUNNING_IN_PRODUCTION:
 
 logging.basicConfig(
     level=logging.WARNING,
-    format="%(message)s",
+    format="%(name)s: %(message)s",
     handlers=[
         RichHandler(
             console=Console(stderr=True),
@@ -45,6 +46,9 @@ logging.basicConfig(
         )
     ],
 )
+# Suppress OTEL 1.39 deprecation warnings and noisy logs
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=r".*Deprecated since version 1\.39\.0.*")
+logging.getLogger("azure.monitor.opentelemetry.exporter._performance_counters._manager").setLevel(logging.ERROR)
 logger = logging.getLogger("ExpensesMCP")
 logger.setLevel(logging.INFO)
 
@@ -108,13 +112,13 @@ class UserAuthMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next):
         user_id = self._get_user_id()
         if context.fastmcp_context is not None:
-            context.fastmcp_context.set_state("user_id", user_id)
+            await context.fastmcp_context.set_state("user_id", user_id)
         return await call_next(context)
 
     async def on_read_resource(self, context: MiddlewareContext, call_next):
         user_id = self._get_user_id()
         if context.fastmcp_context is not None:
-            context.fastmcp_context.set_state("user_id", user_id)
+            await context.fastmcp_context.set_state("user_id", user_id)
         return await call_next(context)
 
 
@@ -155,7 +159,7 @@ async def add_user_expense(
 
     try:
         # Read user_id stored by middleware
-        user_id = ctx.get_state("user_id")
+        user_id = await ctx.get_state("user_id")
         if not user_id:
             return "Error: Authentication required (no user_id present)"
         expense_id = str(uuid.uuid4())
@@ -181,7 +185,7 @@ async def get_user_expenses(ctx: Context):
     """Get the authenticated user's expense data from Cosmos DB."""
 
     try:
-        user_id = ctx.get_state("user_id")
+        user_id = await ctx.get_state("user_id")
         if not user_id:
             return "Error: Authentication required (no user_id present)"
         query = "SELECT * FROM c WHERE c.user_id = @uid ORDER BY c.date DESC"
