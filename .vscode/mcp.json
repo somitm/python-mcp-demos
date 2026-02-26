@@ -27,7 +27,14 @@
 				"0.0.0.0:5678",
 				"servers/basic_mcp_stdio.py"
 			]
-		}
+		},
+		"demo": {
+			"command": "uv",
+			"args": [
+				"run",
+				"/Users/somitm/projects/mymcp/server.py",
+			]
+		}		
 		
 	},
 	"inputs": []
